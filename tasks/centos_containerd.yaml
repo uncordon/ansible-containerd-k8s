@@ -1,0 +1,25 @@
+---
+- name: "Add Docker-ce Repository Of Aliyun"
+  yum_repository:
+    name: Docker-ce
+    description: docker-ce aliyun repository
+    baseurl: https://mirrors.aliyun.com/docker-ce/linux/centos/7/x86_64/stable
+    gpgcheck: no
+  when: ansible_distribution == "CentOS"
+
+- name: "Install Containerd.io"
+  yum:
+    name: containerd.io
+    state: present
+  when: ansible_distribution == "CentOS"
+
+- name: "Create Containerd Config Directory"
+  file:
+    name: "{{ containerd_config_dir }}"
+    state: directory
+  when: ansible_distribution == "CentOS"
+
+- name: "Copy Containerd configure file"
+  copy:
+    src: files/config.toml
+    dest: "{{ containerd_config_dir }}/config.toml"

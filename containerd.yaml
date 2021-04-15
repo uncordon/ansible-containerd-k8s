@@ -1,0 +1,73 @@
+---
+- hosts: containerd_servers
+  
+  tasks:
+    - include_vars: vars/main.yaml
+    
+    - include_tasks: tasks/centos_containerd.yaml
+      when: ansible_distribution == "CentOS"
+      
+    - include_tasks: tasks/k8s.yaml
+      when: ansible_distribution == "CentOS"
+
+    - name: "Add Modules"
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+    
+    - name: "Create Modules configrue file"
+      blockinfile:
+        path: /etc/modules-load.d/containerd.conf
+        block: |
+          overlay
+          br_netfilter
+        create: yes
+
+    - name: "Set kernel"
+      sysctl:
+        name: "{{ item }}"
+        value: '1'
+        reload: yes
+      loop:
+        - net.bridge.bridge-nf-call-iptables
+        - net.ipv4.ip_forward
+        - net.bridge.bridge-nf-call-ip6tables
+
+    - name: "Set kubelet args"
+      lineinfile:
+        path: /etc/sysconfig/kubelet
+        regexp: '^KUBELET_EXTRA_ARGS*'
+        line: "KUBELET_EXTRA_ARGS=\"--container-runtime=remote --container-runtime-endpoint=unix:///run/containerd/containerd.sock --cgroup-driver=systemd\""
+    
+    - name: "Creat crictl configure file"
+      blockinfile:
+        path: /etc/crictl.yaml
+        block: |
+          runtime-endpoint: unix:///run/containerd/containerd.sock
+          image-endpoint: unix:///run/containerd/containerd.sock
+          timeout: 10
+          debug: false
+        create: yes
+
+    - name: "Start Containerd"
+      systemd:
+        name: containerd
+        state: started
+        daemon_reload: yes
+        enabled: yes
+
+    - name: "Start kubelet"
+      systemd:
+        name: kubelet
+        state: started
+        daemon_reload: yes
+        enabled: yes
+
+    - name: "Pre-pull pause container image"
+      shell: |
+        /usr/bin/ctr pull registry.aliyuncs.com/google_containers/pause:3.2
+        /usr/bin/crictl pull registry.aliyuncs.com/google_containers/pause:3.2
+
