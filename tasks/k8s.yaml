@@ -15,10 +15,40 @@
 
 - name: "Install kubelet,kubeadm,kubectl (CentOS)"
   yum: 
-    state=present
-    name={{ item }}-{{ kubernetes_version }}
+    state: present
+    name: "{{ item }}-{{ kubernetes_version }}"
   loop:
     - kubelet
     - kubeadm
     - kubectl
   when: ansible_distribution == "CentOS"
+
+- name: "Add Kubernetes key (Ubuntu)"
+  apt_key:
+    url: https://mirrors.aliyun.com/kubernetes/apt/doc/apt-key.gpg
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Add Kubernetes repository (Ubuntu)"
+  apt_repository:
+    repo: "deb https://mirrors.aliyun.com/kubernetes/apt  kubernetes-xenial main"
+    filename: "kubernetes"
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: "Install kubelet,kubeadm (Ubntu)"
+  apt: 
+    name: "{{ item }}={{ kubernetes_version }}-00"
+    update_cache: yes
+    state: present
+  loop:
+    - kubelet
+    - kubeadm
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Install kubectl (Ubntu)"
+  shell: "apt-get update && apt-get install -y kubectl={{ kubernetes_version }}-00 --allow-downgrades"
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Hold kubelet kubeadm kubctl"
+  shell: "apt-mark hold kubelet kubeadm kubectl"
+

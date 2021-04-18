@@ -7,8 +7,10 @@
     - include_tasks: tasks/centos_containerd.yaml
       when: ansible_distribution == "CentOS"
       
+    - include_tasks: tasks/ubuntu_containerd.yaml
+      when: ansible_distribution == "Ubuntu"
+
     - include_tasks: tasks/k8s.yaml
-      when: ansible_distribution == "CentOS"
 
     - name: "Add Modules"
       modprobe:
@@ -36,11 +38,24 @@
         - net.ipv4.ip_forward
         - net.bridge.bridge-nf-call-ip6tables
 
+    - name: "Check kubelet args in kubelet config (Ubuntu)"
+      shell: grep "^Environment=\"KUBELET_EXTRA_ARGS=" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf || true
+      register: check_args
+      when: ansible_distribution == "Ubuntu"
+
+    - name: "Add runtime args in kubelet conf (Ubuntu)"
+      lineinfile:
+        dest: "/etc/systemd/system/kubelet.service.d/10-kubeadm.conf"
+        line: "Environment=\"KUBELET_EXTRA_ARGS=--container-runtime=remote  --container-runtime-endpoint=unix:///run/containerd/containerd.sock\""
+        insertafter: '\[Service\]'
+      when: ansible_distribution == "Ubuntu" and check_args.stdout == ""
+
     - name: "Set kubelet args"
       lineinfile:
         path: /etc/sysconfig/kubelet
         regexp: '^KUBELET_EXTRA_ARGS*'
         line: "KUBELET_EXTRA_ARGS=\"--container-runtime=remote --container-runtime-endpoint=unix:///run/containerd/containerd.sock --cgroup-driver=systemd\""
+      when: ansible_distribution == "CentOS"
     
     - name: "Creat crictl configure file"
       blockinfile:
@@ -55,7 +70,7 @@
     - name: "Start Containerd"
       systemd:
         name: containerd
-        state: started
+        state: restarted
         daemon_reload: yes
         enabled: yes
 

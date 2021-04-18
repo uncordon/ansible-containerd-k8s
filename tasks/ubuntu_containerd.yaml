@@ -1,0 +1,33 @@
+---
+- name: "Add gpg key (Ubntu)"
+  apt_key:
+    url: https://mirrors.aliyun.com/docker-ce/linux/ubuntu/gpg
+    state: present
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Add Docker-ce Repository Of Aliyun"
+  apt_repository:
+    repo: "deb https://mirrors.aliyun.com/docker-ce/linux/ubuntu {{ ansible_distribution_release }} stable"
+    filename: docker-ce
+  when: ansible_distribution == "Ubuntu"
+
+
+- name: "Install Containerd.io"
+  apt:
+    name: containerd.io
+    state: present
+    update_cache: yes
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Create Containerd Config Directory"
+  file:
+    name: "{{ containerd_config_dir }}"
+    state: directory
+  when: ansible_distribution == "Ubuntu"
+
+- name: "Copy Containerd configure file"
+  copy:
+    src: files/config.toml
+    dest: "{{ containerd_config_dir }}/config.toml"
+  when: ansible_distribution == "Ubuntu"
+
