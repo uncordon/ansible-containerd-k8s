@@ -14,7 +14,7 @@
   when: ansible_distribution == "CentOS"
 
 - name: "Install kubelet,kubeadm,kubectl (CentOS)"
-  yum: 
+  yum:
     state: present
     name: "{{ item }}-{{ kubernetes_version }}"
   loop:
@@ -34,9 +34,13 @@
     filename: "kubernetes"
   when: ansible_distribution == "Ubuntu"
 
+- name: "Update apt cache"
+  apt:
+    update_cache: yes
+  when: ansible_distribution == "Ubuntu"
 
 - name: "Install kubelet,kubeadm (Ubntu)"
-  apt: 
+  apt:
     name: "{{ item }}={{ kubernetes_version }}-00"
     update_cache: yes
     state: present
@@ -51,4 +55,3 @@
 
 - name: "Hold kubelet kubeadm kubctl"
   shell: "apt-mark hold kubelet kubeadm kubectl"
-
